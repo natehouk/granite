@@ -3,7 +3,7 @@
 
 #define DISTRHO_PLUGIN_BRAND   "Epsilon Audio"
 #define DISTRHO_PLUGIN_NAME    "Granite"
-#define DISTRHO_PLUGIN_URI     "https://epsilonrecords.com/plugins/granite"
+#define DISTRHO_PLUGIN_URI     "https://plugins.epsilonrecords.com/granite"
 #define DISTRHO_PLUGIN_CLAP_ID "com.epsilonrecords.granite"
 
 #define DISTRHO_PLUGIN_BRAND_ID  EpsA

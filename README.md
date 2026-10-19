@@ -2,6 +2,8 @@
 
 **A stereo look-ahead brickwall limiter for macOS, Windows and Linux (VST3 · AU · CLAP · VST2).**
 
+Part of **[Epsilon Audio](https://github.com/natehouk/epsilon-plugins)**, a family of free, open-source plugins: Monolith, Caldera, Obsidian, Strata, Basalt, Gneiss, Mica, Flint, Granite and Magma.
+
 ![Granite](screenshot.png)
 
 Granite is a clean-room design with the feature set of FabFilter Pro-L, FabFilter's ninth plugin (October 2010). It was written from scratch, working only from FabFilter's public press release and press coverage. No FabFilter code, binaries, presets, artwork or trademarks were used.
