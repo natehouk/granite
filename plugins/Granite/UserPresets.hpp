@@ -86,7 +86,7 @@ inline bool saveUserPreset(const std::string& rawName, const float* values) {
     std::fprintf(f, "# Granite preset\nformat=1\n");
     for (uint32_t i = 0; i < kParamCount; ++i) {
         const ParamDef& d = paramDef(i);
-        if (d.hints & kHintOutput) continue;
+        if (!isSetting(i)) continue;
         std::fprintf(f, "%s=%.6g\n", d.sym, values[i]);
     }
     std::fclose(f);
@@ -106,7 +106,7 @@ inline bool loadUserPreset(const std::string& name, float* values) {
         *eq = 0;
         const float v = (float)std::atof(eq + 1);
         for (uint32_t i = 0; i < kParamCount; ++i)
-            if (std::strcmp(paramDef(i).sym, line) == 0 && !(paramDef(i).hints & kHintOutput)) {
+            if (std::strcmp(paramDef(i).sym, line) == 0 && isSetting(i)) {
                 values[i] = clampf(v, paramDef(i).min, paramDef(i).max);
                 break;
             }

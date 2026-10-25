@@ -1,5 +1,5 @@
-// Random parameters (including structural changes) at 44.1-192 kHz with loud noise:
-// output always finite and never above the output level in force.
+// Random parameters (including structural changes) at 44.1-192 kHz with loud noise and a random external key:
+// output always finite, and never above the output level in force unless the key or audition is driving it.
 #include "../plugins/Granite/ParamDefs.hpp"
 #include <cstdio>
 #include <random>
@@ -19,14 +19,19 @@ int main() {
                 if (d.hints & kHintInteger) v = std::round(v);
                 e.p[i] = v;
             }
-            float in[400], L[400], R[400]; const float amp = u(g) < .2f ? 0 : (u(g) < .5f ? 8.f : 0.7f);
+            if (u(g) < 0.85f) { e.p[kSidechain] = 0; e.p[kAudition] = 0; }        // mostly bounded, so the ceiling gets checked
+            float in[400], key[400], L[400], R[400]; const float amp = u(g) < .2f ? 0 : (u(g) < .5f ? 8.f : 0.7f), kamp = u(g) < .5f ? 0.f : 4.f * u(g);
             for (float& x : in) x = amp * (2 * u(g) - 1);
-            e.process(in, in, L, R, 400);
+            for (float& x : key) x = kamp * (2 * u(g) - 1);
+            e.process(in, in, L, R, 400, key, key);
+            const bool bounded = e.p[kSidechain] < 0.5f && e.p[kAudition] < 0.5f;
+            if (!bounded) recent.clear();
             // the output level glides over ~20 ms, so allow the larger of the old and new value
             recent.push_back(e.p[kCeiling]); if (recent.size() > keep) recent.erase(recent.begin());
             float lim = -100; for (float c : recent) lim = std::max(lim, c);
             for (int k = 0; k < 400; ++k) {
                 if (!std::isfinite(L[k]) || !std::isfinite(R[k])) bad++;
+                if (!bounded || recent.size() < keep) continue;     // just switched back: allow the fade to finish
                 const float over = gainToDb(std::max(std::fabs(L[k]), std::fabs(R[k]))) - lim;
                 worstOver = std::max(worstOver, over);
             }

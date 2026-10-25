@@ -23,15 +23,23 @@ public:
 protected:
     const char* getLabel() const override { return "Granite"; }
     const char* getDescription() const override {
-        return "Stereo look-ahead brickwall limiter: four styles, attack/release, separate transient and release "
-               "channel linking, 2x/4x linear-phase oversampling with true-peak limiting, dither with noise shaping.";
+        return "Stereo look-ahead brickwall limiter: eight styles, attack/release, separate transient and release "
+               "channel linking, linear-phase oversampling to 32x, true-peak limiting, external sidechain, unity gain "
+               "and audition monitoring, loudness metering, dither with noise shaping.";
     }
     const char* getMaker() const override { return "Epsilon Audio"; }
     const char* getHomePage() const override { return "https://epsilonrecords.com"; }
     const char* getLicense() const override { return "MIT"; }
-    uint32_t getVersion() const override { return d_version(1, 0, 1); }
+    uint32_t getVersion() const override { return d_version(2, 0, 0); }
 
     void initAudioPort(bool input, uint32_t index, AudioPort& port) override {
+        if (input && index >= 2) {                 // inputs 3-4: external sidechain
+            port.hints = kAudioPortIsSidechain;
+            port.name = index == 2 ? "Sidechain Left" : "Sidechain Right";
+            port.symbol = index == 2 ? "sc_left" : "sc_right";
+            port.groupId = kPortGroupNone;
+            return;
+        }
         port.groupId = kPortGroupStereo;
         Plugin::initAudioPort(input, index, port);
     }
@@ -70,12 +78,13 @@ protected:
             else if (std::strcmp(value, "cancel") == 0)     learnTarget = -1;
             else if (std::strncmp(value, "unmap:", 6) == 0) { const int p = std::atoi(value + 6); for (int& m : ccMap) if (m == p) m = -1; }
             else if (std::strcmp(value, "clear") == 0)      { for (int& m : ccMap) m = -1; }
+            else if (std::strcmp(value, "loudreset") == 0)  engine.resetLoudness();
         }
     }
 
     void initProgramName(uint32_t i, String& name) override { name = presets()[i].name; }
     void loadProgram(uint32_t i) override {
-        for (uint32_t k = 0; k < kParamCount; ++k) if (!(paramDef(k).hints & kHintOutput)) engine.p[k] = presets()[i].v[k];
+        for (uint32_t k = 0; k < kParamCount; ++k) if (isSetting(k)) engine.p[k] = presets()[i].v[k];
     }
 
     float getParameterValue(uint32_t i) const override {
@@ -86,6 +95,11 @@ protected:
         case kOutOutL:  return clampf(engine.meterOut(0), -120.f, 12.f);
         case kOutOutR:  return clampf(engine.meterOut(1), -120.f, 12.f);
         case kOutGr:    return clampf(engine.meterGr(), 0.f, 60.f);
+        case kOutLoudM: return clampf(engine.loudMomentary(), -144.f, 10.f);
+        case kOutLoudS: return clampf(engine.loudShortTerm(), -144.f, 10.f);
+        case kOutLoudI: return clampf(engine.loudIntegrated(), -144.f, 10.f);
+        case kOutLoudRange: return clampf(engine.loudRange(), 0.f, 60.f);
+        case kOutTruePeakMax: return clampf(engine.loudTruePeak(), -144.f, 24.f);
         default:        return engine.p[i];
         }
     }
@@ -104,7 +118,7 @@ protected:
         for (uint32_t e = 0; e <= evCount; ++e) {
             const uint32_t until = e < evCount ? std::min(ev[e].frame, frames) : frames;
             if (until > pos) {
-                engine.process(inputs[0] + pos, inputs[1] + pos, outputs[0] + pos, outputs[1] + pos, until - pos);
+                engine.process(inputs[0] + pos, inputs[1] + pos, outputs[0] + pos, outputs[1] + pos, until - pos, inputs[2] + pos, inputs[3] + pos);
                 pos = until;
             }
             if (e == evCount) break;
@@ -117,7 +131,7 @@ protected:
                     for (int& m : ccMap) if (m == learnTarget) m = -1;
                     ccMap[cc] = learnTarget;
                     learnSerial = (learnSerial + 1) % 8;
-                    learnEcho = (float)(learnSerial * 10000 + learnTarget * 128 + cc + 1);
+                    learnEcho = (float)(learnSerial * 1000000 + learnTarget * 128 + cc + 1);
                     learnTarget = -1;
                 }
                 const int prm = ccMap[cc];

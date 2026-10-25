@@ -1,6 +1,7 @@
 // Factory presets (each lists only what it changes from the engine defaults). License: MIT.
 // Engine defaults: Clear, gain 0 dB, output -0.1 dB, look-ahead 2 ms, attack 2 ms, release 80 ms,
-// transient link 75%, release link 100%, no oversampling, true-peak meters, no dither.
+// transient link 75%, release link 100%, no oversampling, true-peak meters, no dither;
+// 2.0: no true-peak limiting, internal sidechain, no DC filter.
 #pragma once
 #include "GraniteEngine.hpp"
 #include <algorithm>
@@ -47,6 +48,20 @@ static const PV clipper[]  = { {kGain,6}, {kCeiling,-1}, {kLookahead,0}, {kAttac
 static const PV dither16[] = { {kDither,1}, {kShaping,3}, {kCeiling,-0.1f}, END };
 static const PV dither24[] = { {kDither,3}, {kShaping,0}, {kCeiling,-0.1f}, END };
 static const PV kMeter14[] = { {kMeterScale,2}, {kDisplayRange,2}, {kCeiling,-1}, END };
+// ---------------------------------------------------------------- 2.0
+static const PV streamTp[]   = { {kStyle,kModern}, {kGain,6}, {kCeiling,-1}, {kLookahead,4}, {kAttack,3}, {kRelease,150}, {kOversampling,2}, {kTruePeakLimit,1}, END };
+static const PV loudModern[] = { {kStyle,kModern}, {kGain,10}, {kCeiling,-1}, {kLookahead,3}, {kAttack,2}, {kRelease,90}, {kOversampling,3}, {kTruePeakLimit,1}, END };
+static const PV safeMaster[] = { {kStyle,kSafe}, {kGain,5}, {kCeiling,-1}, {kLookahead,6}, {kAttack,6}, {kRelease,200}, {kOversampling,2}, {kTruePeakLimit,1}, END };
+static const PV master32[]   = { {kStyle,kClear}, {kGain,6}, {kCeiling,-1}, {kLookahead,5}, {kAttack,4}, {kRelease,140}, {kOversampling,5}, {kTruePeakLimit,1}, END };
+static const PV aggEdm[]     = { {kStyle,kAggressive}, {kGain,12}, {kCeiling,-0.8f}, {kLookahead,1.5f}, {kAttack,1}, {kRelease,40}, {kOversampling,3}, {kTruePeakLimit,1}, END };
+static const PV modernPop[]  = { {kStyle,kModern}, {kGain,8}, {kCeiling,-1}, {kLookahead,3}, {kAttack,2.5f}, {kRelease,110}, {kOversampling,2}, {kTruePeakLimit,1}, END };
+static const PV trap808[]    = { {kStyle,kAggressive}, {kGain,9}, {kCeiling,-1}, {kLookahead,2}, {kAttack,1.5f}, {kRelease,60}, {kLinkTransient,1}, {kOversampling,3}, {kDcFilter,1}, END };
+static const PV busGlue[]    = { {kStyle,kBus}, {kGain,4}, {kCeiling,-1}, {kLookahead,4}, {kAttack,4}, {kRelease,220}, {kOversampling,1}, END };
+static const PV stemKey[]    = { {kStyle,kClear}, {kSidechain,1}, {kGain,6}, {kCeiling,-1}, {kLookahead,4}, {kAttack,3}, {kRelease,120}, {kOversampling,2}, END };
+static const PV mixSafe[]    = { {kStyle,kSafe}, {kGain,2}, {kCeiling,-0.5f}, {kLookahead,3}, {kAttack,3}, {kRelease,150}, END };
+static const PV dcTp[]       = { {kDcFilter,1}, {kTruePeakLimit,1}, {kCeiling,-1}, {kOversampling,2}, END };
+static const PV podcast[]    = { {kStyle,kModern}, {kGain,6}, {kCeiling,-1.5f}, {kLookahead,5}, {kAttack,4}, {kRelease,180}, {kOversampling,2}, {kTruePeakLimit,1}, {kDcFilter,1}, END };
+static const PV broadcastTp[] = { {kStyle,kSafe}, {kGain,4}, {kCeiling,-2}, {kLookahead,6}, {kAttack,6}, {kRelease,250}, {kOversampling,2}, {kTruePeakLimit,1}, {kDcFilter,1}, END };
 } // namespace pv
 #undef END
 
@@ -61,6 +76,12 @@ static const PresetDef kPresetDefs[] = {
     { "Bass Leveler", "Mix & Bus", pv::bassLevel }, { "Wide Bus", "Mix & Bus", pv::wideBus }, { "Pumping", "Mix & Bus", pv::pumping },
     { "Safety Limiter", "Utility", pv::safety }, { "Broadcast", "Utility", pv::broadcast }, { "Soft Clipper", "Utility", pv::clipper },
     { "Dither to 16-bit", "Utility", pv::dither16 }, { "Dither to 24-bit", "Utility", pv::dither24 }, { "K-14 Metering", "Utility", pv::kMeter14 },
+    // 2.0 (appended, so 1.x program numbers stay the same)
+    { "Streaming True Peak", "Mastering", pv::streamTp }, { "Loud Modern Master", "Mastering", pv::loudModern },
+    { "Safe Master", "Mastering", pv::safeMaster }, { "32x Clear Master", "Mastering", pv::master32 },
+    { "Aggressive EDM", "Genres", pv::aggEdm }, { "Modern Pop", "Genres", pv::modernPop }, { "Trap 808", "Genres", pv::trap808 },
+    { "Bus Glue", "Mix & Bus", pv::busGlue }, { "Stem (Sidechain)", "Mix & Bus", pv::stemKey }, { "Mix Bus Safety", "Mix & Bus", pv::mixSafe },
+    { "DC + True Peak", "Utility", pv::dcTp }, { "Podcast Voice", "Utility", pv::podcast }, { "Broadcast True Peak", "Utility", pv::broadcastTp },
 };
 static constexpr uint32_t kNumPresets = sizeof(kPresetDefs) / sizeof(kPresetDefs[0]);
 

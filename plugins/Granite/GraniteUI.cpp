@@ -34,7 +34,7 @@ static double nowSec() { return std::chrono::duration<double>(std::chrono::stead
 using namespace granite;
 using DGL_NAMESPACE::ResizeHandle;
 
-static constexpr float W = 1040.f, H = 660.f;
+static constexpr float W = 1120.f, H = 730.f;
 
 #define C_BG        Color(0x10, 0x10, 0x11)
 #define C_PANEL     Color(0x19, 0x19, 0x1b)
@@ -49,48 +49,67 @@ static constexpr float W = 1040.f, H = 660.f;
 #define C_GR        Color(0xe8, 0x50, 0x48)       // gain reduction
 #define C_RMS       Color(0xf0, 0xc8, 0x6a)       // output RMS
 #define C_DISPLAY   Color(0x0b, 0x0b, 0x0c)
+#define C_LOUD      Color(0xb9, 0x9c, 0xe6)       // loudness
+#define C_GOOD      Color(0x8f, 0xd1, 0x9a)       // on target
 
 static Color withAlpha(const Color& c, float a) { Color r(c); r.alpha = a; return r; }
 
 enum WType { Knob, Toggle, Segment };
-struct Ctl { WType type; uint32_t param; float x, y, r; const char* label; };    // Segment: r = width
+struct Ctl { WType type; uint32_t param; float x, y, r; const char* label; int rows; };    // Segment: r = width, rows of buttons
 
-static constexpr float LX = 16, LY = 64, LW = 880, LH = 316;          // level display
-static constexpr float MX = 904, MY = 64, MW = 120, MH = 316;         // meters
-static constexpr float PY = 390, PH = 254;
-static constexpr float KX = 16, KW = 592, EX = 616, EW = 408;
+static constexpr float LX = 16, LY = 64, LW = 850, LH = 320;          // level display
+static constexpr float MX = 874, MY = 64, MW = 230, MH = 320;         // meters + loudness
+static constexpr float PY = 394, PH = 320;
+static constexpr float KX = 16, KW = 640, EX = 664, EW = 440;
 static constexpr float SEG_H = 24;
+static constexpr float STRIP_H = 92;                                  // compact layout: meter strip instead of the display
+static constexpr float COMPACT_DY = -(LH - STRIP_H);                  // panels move up by this much
+static constexpr float HC = H + COMPACT_DY;                           // compact height
 
-static std::vector<Ctl> buildControls() {
+static std::vector<Ctl> buildControls(float dy) {
     std::vector<Ctl> c;
-    c.push_back({ Segment, kStyle, KX + 296, PY + 32, 400, "" });
-    c.push_back({ Knob, kGain,      KX + 86,  PY + 142, 46, "GAIN" });
-    c.push_back({ Knob, kLookahead, KX + 214, PY + 142, 30, "LOOKAHEAD" });
-    c.push_back({ Knob, kAttack,    KX + 316, PY + 142, 30, "ATTACK" });
-    c.push_back({ Knob, kRelease,   KX + 418, PY + 142, 30, "RELEASE" });
-    c.push_back({ Knob, kCeiling,   KX + 524, PY + 142, 40, "OUTPUT LEVEL" });
-    c.push_back({ Knob, kLinkTransient, EX + 54,  PY + 80, 24, "TRANSIENT" });
-    c.push_back({ Knob, kLinkRelease,   EX + 136, PY + 80, 24, "RELEASE" });
-    c.push_back({ Segment, kOversampling, EX + 300, PY + 46, 180, "" });
-    c.push_back({ Toggle, kTruePeak, EX + 228, PY + 92, 0, "TRUE PEAK METERS" });
-    c.push_back({ Segment, kDither, EX + 104, PY + 172, 176, "" });
-    c.push_back({ Segment, kShaping, EX + 300, PY + 172, 196, "" });
-    c.push_back({ Segment, kMeterScale, EX + 104, PY + 222, 176, "" });
-    c.push_back({ Segment, kDisplayRange, EX + 300, PY + 222, 196, "" });
+    const float py = PY + dy;
+    c.push_back({ Segment, kStyle, KX + 320, py + 30, 540, "", 2 });
+    c.push_back({ Knob, kGain,      KX + 92,  py + 166, 46, "GAIN", 1 });
+    c.push_back({ Knob, kLookahead, KX + 228, py + 166, 30, "LOOKAHEAD", 1 });
+    c.push_back({ Knob, kAttack,    KX + 336, py + 166, 30, "ATTACK", 1 });
+    c.push_back({ Knob, kRelease,   KX + 444, py + 166, 30, "RELEASE", 1 });
+    c.push_back({ Knob, kCeiling,   KX + 562, py + 166, 40, "OUTPUT LEVEL", 1 });
+    c.push_back({ Knob, kLinkTransient, EX + 54,  py + 80, 24, "TRANSIENT", 1 });
+    c.push_back({ Knob, kLinkRelease,   EX + 136, py + 80, 24, "RELEASE", 1 });
+    c.push_back({ Segment, kOversampling, EX + 316, py + 46, 228, "", 1 });
+    c.push_back({ Toggle, kTruePeakLimit, EX + 222, py + 86, 0, "TRUE PEAK LIMITING", 1 });
+    c.push_back({ Toggle, kTruePeak, EX + 222, py + 112, 0, "TRUE PEAK METERS", 1 });
+    c.push_back({ Segment, kDither, EX + 104, py + 210, 176, "", 1 });
+    c.push_back({ Segment, kShaping, EX + 316, py + 210, 228, "", 1 });
+    c.push_back({ Segment, kMeterScale, EX + 104, py + 254, 176, "", 1 });
+    c.push_back({ Segment, kDisplayRange, EX + 316, py + 254, 228, "", 1 });
+    // 2.0
+    c.push_back({ Segment, kSidechain, EX + 104, py + 166, 176, "", 1 });
+    c.push_back({ Segment, kLoudTarget, EX + 316, py + 166, 228, "", 1 });
+    c.push_back({ Segment, kDisplaySpeed, EX + 104, py + 298, 176, "", 1 });
+    c.push_back({ Toggle, kUnityGain, KX + 56,  py + 290, 0, "UNITY GAIN", 1 });
+    c.push_back({ Toggle, kAudition,  KX + 236, py + 290, 0, "AUDITION LIMITING", 1 });
+    c.push_back({ Toggle, kDcFilter,  KX + 456, py + 290, 0, "DC FILTER", 1 });
     return c;
 }
-static const std::vector<Ctl>& controls() { static std::vector<Ctl> c = buildControls(); return c; }
 
 static const char* const* segLabels(uint32_t p, int& n) {
-    static const char* const style[] = { "CLEAR", "PUNCHY", "DYNAMIC", "BALANCED" };
-    static const char* const os[] = { "OFF", "2X", "4X" };
+    static const char* const style[] = { "CLEAR", "PUNCHY", "DYNAMIC", "BALANCED", "AGGRESSIVE", "MODERN", "BUS", "SAFE" };
+    static const char* const os[] = { "OFF", "2X", "4X", "8X", "16X", "32X" };
+    static const char* const sc[] = { "INTERNAL", "EXTERNAL" };
+    static const char* const tgt[] = { "OFF", "R128", "A/85", "-14", "-16" };
+    static const char* const spd[] = { "NORMAL", "FAST", "SLOW", "OFF" };
     static const char* const dith[] = { "OFF", "16", "20", "24" };
     static const char* const shp[] = { "FLAT", "BASIC", "OPTIM.", "WEIGHT." };
     static const char* const scale[] = { "DBFS", "K-20", "K-14", "K-12" };
     static const char* const range[] = { "12 DB", "24 DB", "48 DB" };
     switch (p) {
-    case kStyle: n = 4; return style;
-    case kOversampling: n = 3; return os;
+    case kStyle: n = kNumStyles; return style;
+    case kOversampling: n = kNumOversampling; return os;
+    case kSidechain: n = 2; return sc;
+    case kLoudTarget: n = kNumLoudTargets; return tgt;
+    case kDisplaySpeed: n = 4; return spd;
     case kDither: n = 4; return dith;
     case kShaping: n = 4; return shp;
     case kMeterScale: n = 4; return scale;
@@ -102,8 +121,10 @@ static const char* const* segLabels(uint32_t p, int& n) {
 static constexpr float PS_X = 318.f, PS_Y = 20.f, PS_W = 220.f, PS_H = 28.f, PS_ARROW = 28.f;
 static constexpr float A_X = 548.f, AB_W = 30.f, COPY_X = 612.f, COPY_W = 46.f;
 static constexpr float UNDO_X = 668.f, REDO_X = 720.f, UR_W = 48.f, LEARN_X = 778.f, LEARN_W = 66.f, MIDI_X = 848.f, MIDI_W = 48.f, HELP_X = 902.f, HELP_W = 48.f;
+static constexpr float CMP_X = 956.f, CMP_W = 72.f;
 static constexpr float PM_COLW = 160.f, PM_ROW = 23.f, PM_HEAD = 22.f, PM_PAD = 8.f;
-static constexpr int HIST = 500;                  // 10 s at 50 points per second
+static constexpr int HIST = 1500;                 // 30 s at 50 points per second (the Slow display speed)
+static int visiblePoints(float speed) { const int k = (int)clampf(std::round(speed), 0, 3); return k == 1 ? 250 : (k == 2 ? 1500 : 500); }
 
 class GraniteUI : public UI {
 public:
@@ -112,25 +133,32 @@ public:
         Engine def;
         for (uint32_t i = 0; i < kParamCount; ++i) { val[i] = def.p[i]; defv[i] = def.p[i]; }
         val[kOutInL] = val[kOutInR] = val[kOutOutL] = val[kOutOutR] = -120;
+        val[kOutLoudM] = val[kOutLoudS] = val[kOutLoudI] = val[kOutTruePeakMax] = -144; val[kOutLoudRange] = 0;
         for (int& m : paramCC) m = -1;
         const double sf = getScaleFactor();
         if (sf != 1.0) setSize((uint)(W * sf), (uint)(H * sf));
-        setGeometryConstraints((uint)(W * 0.6 * sf), (uint)(H * 0.6 * sf), true);
+        setGeometryConstraints((uint)(W * 0.6 * sf), (uint)(HC * 0.6 * sf), false);
         if (isResizable()) resizeHandle.hide();
         userPresets = listUserPresets();
         std::copy(val, val + kParamCount, before);
-        for (int i = 0; i < HIST; ++i) { hIn[i] = hOut[i] = hRms[i] = -120; hGr[i] = 0; }
+        for (int i = 0; i < HIST; ++i) { hIn[i] = hOut[i] = hRms[i] = -120; hLoud[i] = -144; hGr[i] = 0; }
         resetPeaks();
     }
 
 protected:
     float uiScale() const { return (float)getWidth() / W; }
+    bool compact() const { return val[kCompact] > 0.5f; }
+    float dy() const { return compact() ? COMPACT_DY : 0.f; }
+    float py() const { return PY + dy(); }
+    const std::vector<Ctl>& controls() const { static const std::vector<Ctl> n = buildControls(0), c = buildControls(COMPACT_DY); return compact() ? c : n; }
+    // the window follows the layout: full height or compact, at the current width
+    void fitHeight() { const float s = uiScale(); const uint h = (uint)std::lround((compact() ? HC : H) * s); if (getHeight() != h) setSize(getWidth(), h); }
 
     void setValue(uint32_t p, float v) {
         const ParamDef& d = paramDef(p);
         v = clampf(v, d.min, d.max);
         if (v == val[p]) return;
-        val[p] = v; setParameterValue(p, v); repaint();
+        val[p] = v; setParameterValue(p, v); if (p == kCompact) fitHeight(); repaint();
     }
     void commit(uint32_t p, float v) { editParameter(p, true); setValue(p, v); editParameter(p, false); }
 
@@ -138,7 +166,7 @@ protected:
         if (i >= kParamCount) return;
         if (i == kOutLearn) {
             if (v != lastLearnEcho && v > 0) {
-                const int code = (int)v % 10000 - 1, prm = code / 128, cc = code % 128;
+                const int code = (int)v % 1000000 - 1, prm = code / 128, cc = code % 128;
                 for (int& m : paramCC) if (m == cc) m = -1;
                 if (prm >= 0 && prm < (int)kParamCount) paramCC[prm] = cc;
                 learnWaiting = -1;
@@ -152,7 +180,7 @@ protected:
             if (i == kOutGr) pkGr = std::max(pkGr, v);
             return;
         }
-        if (val[i] != v) { val[i] = v; if (!gesture) before[i] = v; repaint(); }
+        if (val[i] != v) { val[i] = v; if (!gesture) before[i] = v; if (i == kCompact) fitHeight(); repaint(); }
     }
     void stateChanged(const char* key, const char* value) override {
         if (std::strcmp(key, "midimap") != 0) return;
@@ -171,7 +199,7 @@ protected:
     typedef std::vector<float> Snap;
     Snap snapshot() const { Snap s(val, val + kParamCount); s.push_back((float)abSlot); return s; }
     bool differs(const float* a, const float* b) const {
-        for (uint32_t i = 0; i < kParamCount; ++i) if (!(paramDef(i).hints & kHintOutput) && a[i] != b[i]) return true;
+        for (uint32_t i = 0; i < kParamCount; ++i) if (isSetting(i) && a[i] != b[i]) return true;
         return false;
     }
     void beginGesture() { gesture = true; std::copy(val, val + kParamCount, before); }
@@ -184,7 +212,7 @@ protected:
         }
         std::copy(val, val + kParamCount, before); repaint();
     }
-    void applyAll(const float* s) { for (uint32_t i = 0; i < kParamCount; ++i) if (!(paramDef(i).hints & kHintOutput) && val[i] != s[i]) commit(i, s[i]); }
+    void applyAll(const float* s) { for (uint32_t i = 0; i < kParamCount; ++i) if (isSetting(i) && val[i] != s[i]) commit(i, s[i]); }
     void restoreSnap(const Snap& s) {
         if (s.size() > kParamCount && (int)s[kParamCount] != abSlot) { abStore[abSlot] = snapshot(); abSlot = (int)s[kParamCount]; }
         applyAll(s.data()); std::copy(val, val + kParamCount, before);
@@ -238,7 +266,7 @@ protected:
         for (int i = 0; i < 10; ++i) { beginPath(); circle(sp[i][0], sp[i][1], sp[i][2]); fillColor(i % 3 == 0 ? Color(0x1c, 0x1b, 0x1a) : (i % 3 == 1 ? Color(0xe8, 0xe2, 0xda) : Color(0xb4, 0x8a, 0x78))); fill(); }
         fontSize(22); textLetterSpacing(9); fillColor(C_TEXT); textAlign(ALIGN_LEFT | ALIGN_MIDDLE); text(56, 34, "GRANITE", nullptr);
         fontSize(9.5f); textLetterSpacing(2.5f); fillColor(C_DIM); text(222, 29, "LIMITER", nullptr);
-        fontSize(7); textLetterSpacing(1.1f); fillColor(C_FAINT); text(222, 41, "EPSILON AUDIO 1.0", nullptr);
+        fontSize(7); textLetterSpacing(1.1f); fillColor(C_FAINT); text(222, 41, "EPSILON AUDIO 2.0", nullptr);
         drawPresetBar();
         for (int k = 0; k < 2; ++k) {
             const float x = A_X + k * AB_W; const bool on = abSlot == k, hot = hoverHeader == 6 + k;
@@ -253,17 +281,20 @@ protected:
         drawHeaderButton(LEARN_X, LEARN_W, learnMode ? "LEARNING" : "LEARN", learnMode, hoverHeader == 1, false);
         drawHeaderButton(MIDI_X, MIDI_W, "MIDI", val[kMidiOn] > 0.5f, hoverHeader == 2, false);
         drawHeaderButton(HELP_X, HELP_W, "HELP", helpOpen, hoverHeader == 5, false);
+        drawHeaderButton(CMP_X, CMP_W, compact() ? "FULL" : "COMPACT", false, hoverHeader == 9, false);
         { char b[24]; snprintf(b, sizeof b, "%.1f ms", latencyMs);
           fontSize(7); textLetterSpacing(1.4f); textAlign(ALIGN_RIGHT | ALIGN_MIDDLE); fillColor(C_FAINT); text(W - 16, 28, "LATENCY", nullptr);
           fontSize(9.5f); textLetterSpacing(0.4f); fillColor(C_DIM); text(W - 16, 41, b, nullptr); }
 
-        drawLevelDisplay();
-        drawMeters();
-        panel(KX, PY, KW, PH); panel(EX, PY, EW, PH);
-        drawCaption(EX + 95, PY + 22, "CHANNEL LINK"); drawCaption(EX + 300, PY + 22, "OVERSAMPLING");
-        drawCaption(EX + 104, PY + 152, "DITHER"); drawCaption(EX + 300, PY + 152, "NOISE SHAPING");
-        drawCaption(EX + 104, PY + 202, "METER SCALE"); drawCaption(EX + 300, PY + 202, "DISPLAY RANGE");
-        beginPath(); moveTo(EX + 16, PY + 136); lineTo(EX + EW - 16, PY + 136); strokeColor(C_LINE); strokeWidth(1); stroke();
+        if (compact()) drawStrip(); else { drawLevelDisplay(); drawMeters(); }
+        const float Y = py();
+        panel(KX, Y, KW, PH); panel(EX, Y, EW, PH);
+        drawCaption(EX + 95, Y + 22, "CHANNEL LINK"); drawCaption(EX + 316, Y + 22, "OVERSAMPLING");
+        drawCaption(EX + 104, Y + 148, "SIDECHAIN"); drawCaption(EX + 316, Y + 148, "LOUDNESS TARGET");
+        drawCaption(EX + 104, Y + 192, "DITHER"); drawCaption(EX + 316, Y + 192, "NOISE SHAPING");
+        drawCaption(EX + 104, Y + 236, "METER SCALE"); drawCaption(EX + 316, Y + 236, "DISPLAY RANGE");
+        drawCaption(EX + 104, Y + 280, "DISPLAY SPEED");
+        beginPath(); moveTo(EX + 16, Y + 132); lineTo(EX + EW - 16, Y + 132); moveTo(KX + 16, Y + 252); lineTo(KX + KW - 16, Y + 252); strokeColor(C_LINE); strokeWidth(1); stroke();
 
         const std::vector<Ctl>& cs = controls();
         for (int i = 0; i < (int)cs.size(); ++i) drawCtl(cs[i], i == active || i == hover);
@@ -292,6 +323,20 @@ protected:
     float dbOfY(float y, float top, float h) const { return headDb() - (y - top) / h * (headDb() + rangeDb()); }
     float dispTop() const { return LY + 10; }
     float dispH() const { return LH - 30; }
+    // the visible history: the last `n` points, pooled into at most `cols` columns (max for levels and GR,
+    // last value for loudness), oldest first
+    int pooled(std::vector<float>& in, std::vector<float>& out, std::vector<float>& gr, std::vector<float>& rms, std::vector<float>& lu) const {
+        const int n = visiblePoints(val[kDisplaySpeed]), cols = 500, step = (n + cols - 1) / cols, m = n / step;
+        in.assign(m, -120); out.assign(m, -120); gr.assign(m, 0); rms.assign(m, -120); lu.assign(m, -144);
+        for (int k = 0; k < m; ++k) for (int j = 0; j < step; ++j) {
+            const int idx = ((hPos - n + k * step + j) % HIST + HIST) % HIST;
+            in[k] = std::max(in[k], hIn[idx]); out[k] = std::max(out[k], hOut[idx]); gr[k] = std::max(gr[k], hGr[idx]);
+            rms[k] = std::max(rms[k], hRms[idx]); lu[k] = hLoud[idx];
+        }
+        return m;
+    }
+    float targetLufs() const { return loudTargetLufs((int)std::round(val[kLoudTarget])); }
+    bool targetOn() const { return val[kLoudTarget] > 0.5f; }
     void drawLevelDisplay() {
         displayBox(LX, LY, LW, LH);
         const float top = dispTop(), h = dispH(), R = rangeDb(), ko = kOffsetDb(val[kMeterScale]);
@@ -301,73 +346,164 @@ protected:
         for (float db = 0; db >= -R; db -= step) { const float y = yOfDb(db, top, h); moveTo(LX + 6, y); lineTo(LX + LW - 6, y); }
         strokeColor(Color(255, 255, 255, 8 / 255.f)); strokeWidth(1); stroke();
         for (float db = 0; db >= -R + 0.1f; db -= step) { char b[12]; snprintf(b, sizeof b, "%+.0f", db + ko); text(LX + 8, yOfDb(db, top, h) - 6, (db == 0 && ko == 0) ? "0" : b, nullptr); }
-        const float x0 = LX + 34, x1 = LX + LW - 8, dx = (x1 - x0) / (HIST - 1);
-        auto idx = [&](int k) { return (hPos + k) % HIST; };            // oldest first
+        const float x0 = LX + 34, x1 = LX + LW - 8;
+        const bool off = std::round(val[kDisplaySpeed]) == 3;
+        std::vector<float> in, out, gr, rms, lu; const int m = off ? 0 : pooled(in, out, gr, rms, lu);
+        const float dx = m > 1 ? (x1 - x0) / (m - 1) : 0;
         const float bot = top + h;
         scissor(LX + 1, LY + 1, LW - 2, LH - 2);
-        // input (grey), with the part the limiter removed in red, then the output on top
-        beginPath(); moveTo(x0, bot);
-        for (int k = 0; k < HIST; ++k) lineTo(x0 + k * dx, yOfDb(hIn[idx(k)], top, h));
-        lineTo(x1, bot); closePath(); fillColor(C_IN); fill();
-        // the band between input and output is what the limiter removed
-        beginPath();
-        for (int k = 0; k < HIST; ++k) { const float x = x0 + k * dx, y = yOfDb(hIn[idx(k)], top, h); if (!k) moveTo(x, y); else lineTo(x, y); }
-        for (int k = HIST - 1; k >= 0; --k) lineTo(x0 + k * dx, yOfDb(std::min(hOut[idx(k)], hIn[idx(k)]), top, h));
-        closePath(); fillColor(withAlpha(C_GR, 0.8f)); fill();
-        beginPath(); moveTo(x0, bot);
-        for (int k = 0; k < HIST; ++k) lineTo(x0 + k * dx, yOfDb(std::min(hOut[idx(k)], hIn[idx(k)]), top, h));
-        lineTo(x1, bot); closePath(); fillPaint(linearGradient(0, top, 0, bot, Color(0x5a, 0x6e, 0x7a), Color(0x2e, 0x36, 0x3c))); fill();
-        beginPath();
-        for (int k = 0; k < HIST; ++k) { const float x = x0 + k * dx, y = yOfDb(hOut[idx(k)], top, h); if (!k) moveTo(x, y); else lineTo(x, y); }
-        strokeColor(C_OUT); strokeWidth(1.2f); stroke();
-        // gain reduction trace from the top (same dB scale)
-        beginPath();
-        for (int k = 0; k < HIST; ++k) { const float x = x0 + k * dx, y = top + h * clampf(hGr[idx(k)] / (headDb() + R), 0.f, 1.f); if (!k) moveTo(x, y); else lineTo(x, y); }
-        strokeColor(withAlpha(C_GR, 0.9f)); strokeWidth(1.4f); stroke();
-        // output RMS
-        beginPath();
-        for (int k = 0; k < HIST; ++k) { const float x = x0 + k * dx, y = yOfDb(hRms[idx(k)], top, h); if (!k) moveTo(x, y); else lineTo(x, y); }
-        strokeColor(withAlpha(C_RMS, 0.8f)); strokeWidth(1.2f); stroke();
+        if (m > 1) {
+            // input (grey), with the part the limiter removed in red, then the output on top
+            beginPath(); moveTo(x0, bot);
+            for (int k = 0; k < m; ++k) lineTo(x0 + k * dx, yOfDb(in[k], top, h));
+            lineTo(x1, bot); closePath(); fillColor(C_IN); fill();
+            beginPath();
+            for (int k = 0; k < m; ++k) { const float x = x0 + k * dx, y = yOfDb(in[k], top, h); if (!k) moveTo(x, y); else lineTo(x, y); }
+            for (int k = m - 1; k >= 0; --k) lineTo(x0 + k * dx, yOfDb(std::min(out[k], in[k]), top, h));
+            closePath(); fillColor(withAlpha(C_GR, 0.8f)); fill();
+            beginPath(); moveTo(x0, bot);
+            for (int k = 0; k < m; ++k) lineTo(x0 + k * dx, yOfDb(std::min(out[k], in[k]), top, h));
+            lineTo(x1, bot); closePath(); fillPaint(linearGradient(0, top, 0, bot, Color(0x5a, 0x6e, 0x7a), Color(0x2e, 0x36, 0x3c))); fill();
+            beginPath();
+            for (int k = 0; k < m; ++k) { const float x = x0 + k * dx, y = yOfDb(out[k], top, h); if (!k) moveTo(x, y); else lineTo(x, y); }
+            strokeColor(C_OUT); strokeWidth(1.2f); stroke();
+            // gain reduction trace from the top (same dB scale)
+            auto grY = [&](float g) { return top + h * clampf(g / (headDb() + R), 0.f, 1.f); };
+            beginPath();
+            for (int k = 0; k < m; ++k) { const float x = x0 + k * dx, y = grY(gr[k]); if (!k) moveTo(x, y); else lineTo(x, y); }
+            strokeColor(withAlpha(C_GR, 0.9f)); strokeWidth(1.4f); stroke();
+            // output RMS, or momentary loudness when a loudness target is set (LUFS on the same dB grid)
+            beginPath();
+            for (int k = 0; k < m; ++k) { const float x = x0 + k * dx, y = yOfDb(targetOn() ? lu[k] : rms[k], top, h); if (!k) moveTo(x, y); else lineTo(x, y); }
+            strokeColor(withAlpha(targetOn() ? C_LOUD : C_RMS, 0.85f)); strokeWidth(1.2f); stroke();
+            // peak gain reduction labels: the deepest point in each stretch of the display
+            const int span = std::max(8, (int)(70 / std::max(dx, 0.01f)));
+            fontSize(8.5f); textLetterSpacing(0.3f); textAlign(ALIGN_CENTER | ALIGN_TOP);
+            float lastX = -1000;
+            for (int k0 = 0; k0 < m; k0 += span) {
+                int best = -1; float g = 0.5f;
+                for (int k = k0; k < std::min(m, k0 + span); ++k) if (gr[k] > g) { g = gr[k]; best = k; }
+                if (best < 2 || best > m - 3 || x0 + best * dx - lastX < 56) continue;
+                lastX = x0 + best * dx;
+                char b[12]; snprintf(b, sizeof b, "-%.1f", g); const float x = x0 + best * dx, y = grY(g) + 3;
+                fillColor(Color(0x0b, 0x0b, 0x0c, 0.7f)); beginPath(); roundedRect(x - 15, y, 30, 12, 2); fill();
+                fillColor(C_GR); text(x, y + 1, b, nullptr);
+            }
+        } else if (off) {
+            fontSize(9); textLetterSpacing(2); textAlign(ALIGN_CENTER | ALIGN_MIDDLE); fillColor(C_FAINT); text(LX + LW / 2, top + h / 2, "DISPLAY OFF", nullptr);
+        }
+        if (targetOn()) {           // the target, as a band of +-1 LU
+            const float t = targetLufs(), ya = yOfDb(t + 1, top, h), yb = yOfDb(t - 1, top, h);
+            beginPath(); rect(x0, ya, x1 - x0, yb - ya); fillColor(withAlpha(C_LOUD, 0.08f)); fill();
+            beginPath(); moveTo(x0, yOfDb(t, top, h)); lineTo(x1, yOfDb(t, top, h)); strokeColor(withAlpha(C_LOUD, 0.5f)); strokeWidth(1); stroke();
+            char b[32]; snprintf(b, sizeof b, "TARGET %.0f LUFS", t); fontSize(8); textLetterSpacing(1.2f); textAlign(ALIGN_LEFT | ALIGN_BOTTOM); fillColor(C_LOUD); text(x0 + 6, yOfDb(t, top, h) - 3, b, nullptr);
+        }
         resetScissor();
         // output level line (dashed, draggable)
         const float cy = yOfDb(val[kCeiling], top, h); const bool hot = hoverCeil || dragCeil;
         for (float x = x0; x < x1; x += 10) { beginPath(); moveTo(x, cy); lineTo(std::min(x + 5, x1), cy); strokeColor(withAlpha(C_ACC, hot ? 1.f : 0.75f)); strokeWidth(hot ? 2.f : 1.2f); stroke(); }
-        char b[32]; snprintf(b, sizeof b, "OUTPUT %.1f dB", val[kCeiling]);
+        char b[40]; snprintf(b, sizeof b, val[kTruePeakLimit] > 0.5f ? "OUTPUT %.1f dBTP" : "OUTPUT %.1f dB", val[kCeiling]);
         fontSize(9); textLetterSpacing(0.8f); textAlign(ALIGN_RIGHT | ALIGN_BOTTOM); fillColor(C_ACC); text(x1 - 2, cy - 3, b, nullptr);
         fontSize(8); textLetterSpacing(1.6f); textAlign(ALIGN_LEFT | ALIGN_BOTTOM);
         fillColor(C_DIM); text(LX + 34, LY + LH - 4, "INPUT", nullptr); fillColor(C_OUT); text(LX + 86, LY + LH - 4, "OUTPUT", nullptr);
-        fillColor(C_GR); text(LX + 146, LY + LH - 4, "GAIN REDUCTION", nullptr); fillColor(C_RMS); text(LX + 262, LY + LH - 4, "RMS", nullptr);
+        fillColor(C_GR); text(LX + 146, LY + LH - 4, "GAIN REDUCTION", nullptr);
+        if (targetOn()) { fillColor(C_LOUD); text(LX + 262, LY + LH - 4, "LOUDNESS (M)", nullptr); } else { fillColor(C_RMS); text(LX + 262, LY + LH - 4, "RMS", nullptr); }
+        textAlign(ALIGN_RIGHT | ALIGN_BOTTOM); fillColor(C_FAINT);
+        static const char* const spanTxt[] = { "10 S", "5 S", "30 S", "" };
+        text(x1, LY + LH - 4, spanTxt[(int)clampf(std::round(val[kDisplaySpeed]), 0, 3)], nullptr);
+        drawMonitorBadge(LX + LW / 2, LY + 18);
+    }
+    // a reminder while the output is not the real result
+    void drawMonitorBadge(float cx, float cy) {
+        const bool a = val[kAudition] > 0.5f, u = val[kUnityGain] > 0.5f, ext = val[kSidechain] > 0.5f;
+        if (!a && !u && !ext) return;
+        std::string t = a && u ? "AUDITION LIMITING · UNITY GAIN" : (a ? "AUDITION LIMITING" : (u ? "UNITY GAIN" : ""));
+        if (ext) t = t.empty() ? "EXTERNAL SIDECHAIN" : t + " · EXTERNAL SIDECHAIN";
+        fontSize(8.5f); textLetterSpacing(1.6f); Rectangle<float> bb; textBounds(0, 0, t.c_str(), nullptr, bb); const float w = bb.getWidth() + 20;
+        beginPath(); roundedRect(cx - w / 2, cy - 9, w, 18, 9); fillColor(withAlpha((a || u) ? C_GR : C_ACC, 0.18f)); fill(); strokeColor((a || u) ? C_GR : C_ACC); strokeWidth(1); stroke();
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE); fillColor((a || u) ? C_GR : C_ACC); text(cx, cy + 0.5f, t.c_str(), nullptr);
+    }
+    // loudness readouts: M, S, I, LRA, TP max; I against the target
+    void drawLoudness(float x, float y, float w, bool row) {
+        const float vM = val[kOutLoudM], vS = val[kOutLoudS], vI = val[kOutLoudI], vR = val[kOutLoudRange], vT = val[kOutTruePeakMax];
+        const char* names[5] = { "M", "S", "I", "LRA", "TP" };
+        const char* units[5] = { "LUFS", "LUFS", "LUFS", "LU", "dBTP" };
+        const float vals[5] = { vM, vS, vI, vR, vT };
+        for (int k = 0; k < 5; ++k) {
+            char b[16];
+            if (k == 3) snprintf(b, sizeof b, "%.1f", vals[k]); else if (vals[k] < -100) snprintf(b, sizeof b, "-inf"); else snprintf(b, sizeof b, "%.1f", vals[k]);
+            Color c = C_TEXT;
+            if (k == 2 && targetOn() && vI > -100) c = std::fabs(vI - targetLufs()) <= 1.f ? C_GOOD : C_RMS;
+            if (k == 4 && vT > val[kCeiling] + 0.05f) c = C_GR;
+            const float xx = row ? x + k * (w / 5) : x, yy = row ? y : y + k * 40;
+            fontSize(7.5f); textLetterSpacing(1.2f); textAlign(ALIGN_LEFT | ALIGN_TOP); fillColor(C_FAINT); text(xx, yy, names[k], nullptr);
+            fontSize(row ? 13.f : 15.f); textLetterSpacing(0.3f); fillColor(c); text(xx, yy + 10, b, nullptr);
+            fontSize(7); textLetterSpacing(0.8f); fillColor(C_FAINT); text(xx + (row ? 44 : 50), yy + (row ? 15 : 17), units[k], nullptr);
+        }
+        if (!row) {
+            fontSize(7); textLetterSpacing(1.2f); textAlign(ALIGN_LEFT | ALIGN_BOTTOM); fillColor(C_FAINT);
+            if (targetOn()) { char b[32]; snprintf(b, sizeof b, "TARGET %.0f LUFS", targetLufs()); fillColor(C_LOUD); text(x, MY + MH - 22, b, nullptr); fillColor(C_FAINT); }
+            text(x, MY + MH - 10, "CLICK TO RESET", nullptr);
+        }
     }
     void drawMeters() {
         displayBox(MX, MY, MW, MH);
-        const float top = MY + 40, bot = MY + MH - 22, h = bot - top, R = rangeDb(), ko = kOffsetDb(val[kMeterScale]);
+        drawBarMeters(MX, MY, MH);
+        beginPath(); moveTo(MX + 120, MY + 10); lineTo(MX + 120, MY + MH - 10); strokeColor(C_LINE); strokeWidth(1); stroke();
+        fontSize(7.5f); textLetterSpacing(1.2f); textAlign(ALIGN_LEFT | ALIGN_MIDDLE); fillColor(C_FAINT); text(MX + 132, MY + 12, "LOUDNESS", nullptr);
+        drawLoudness(MX + 132, MY + 36, 90, false);
+    }
+    void drawBarMeters(float mx, float my, float mh) {
+        const float top = my + 40, bot = my + mh - 22, h = bot - top, R = rangeDb(), ko = kOffsetDb(val[kMeterScale]);
         auto y = [&](float db) { return yOfDb(db, top, h); };
         auto bar = [&](float x, float w, float db, const Color& c) {
             beginPath(); rect(x, top, w, h); fillColor(C_PANEL_HI); fill();
             if (db > -R - 1) { const float yy = y(db); beginPath(); rect(x, yy, w, bot - yy); fillColor(c); fill();
                 if (db > 0.01f) { beginPath(); rect(x, top, w, 3); fillColor(C_GR); fill(); } }
         };
-        bar(MX + 10, 8, val[kOutInL], Color(0x7a, 0x7b, 0x80)); bar(MX + 20, 8, val[kOutInR], Color(0x7a, 0x7b, 0x80));
-        { const float x = MX + 46; beginPath(); rect(x, top, 10, h); fillColor(C_PANEL_HI); fill();
+        bar(mx + 10, 8, val[kOutInL], Color(0x7a, 0x7b, 0x80)); bar(mx + 20, 8, val[kOutInR], Color(0x7a, 0x7b, 0x80));
+        { const float x = mx + 46; beginPath(); rect(x, top, 10, h); fillColor(C_PANEL_HI); fill();
           const float g = clampf(val[kOutGr] / (headDb() + R), 0.f, 1.f); if (g > 0.002f) { beginPath(); rect(x, top, 10, h * g); fillColor(C_GR); fill(); } }
-        bar(MX + 82, 8, val[kOutOutL], C_OUT); bar(MX + 92, 8, val[kOutOutR], C_OUT);
+        bar(mx + 82, 8, val[kOutOutL], C_OUT); bar(mx + 92, 8, val[kOutOutR], C_OUT);
         // ceiling tick on the output meters, 0 dB tick on input
-        beginPath(); moveTo(MX + 80, y(val[kCeiling])); lineTo(MX + 102, y(val[kCeiling])); strokeColor(C_ACC); strokeWidth(1); stroke();
-        beginPath(); moveTo(MX + 8, y(0)); lineTo(MX + 30, y(0)); strokeColor(C_FAINT); stroke();
+        beginPath(); moveTo(mx + 80, y(val[kCeiling])); lineTo(mx + 102, y(val[kCeiling])); strokeColor(C_ACC); strokeWidth(1); stroke();
+        beginPath(); moveTo(mx + 8, y(0)); lineTo(mx + 30, y(0)); strokeColor(C_FAINT); stroke();
         // scale
         fontSize(7); textLetterSpacing(0.4f); textAlign(ALIGN_CENTER | ALIGN_MIDDLE); fillColor(C_FAINT);
         const float step = R <= 12 ? 3.f : (R <= 24 ? 6.f : 12.f);
-        for (float db = 0; db >= -R + 0.1f; db -= step) { char b[12]; snprintf(b, sizeof b, "%.0f", db + ko); text(MX + 69, y(db), b, nullptr); }
+        for (float db = 0; db >= -R + 0.1f; db -= step) { char b[12]; snprintf(b, sizeof b, "%.0f", db + ko); text(mx + 69, y(db), b, nullptr); }
         fontSize(7.5f); textLetterSpacing(1.2f); fillColor(C_FAINT);
-        text(MX + 19, MY + 12, "IN", nullptr); text(MX + 51, MY + 12, "GR", nullptr); text(MX + 91, MY + 12, val[kTruePeak] > 0.5f ? "OUT TP" : "OUT", nullptr);
+        text(mx + 19, my + 12, "IN", nullptr); text(mx + 51, my + 12, "GR", nullptr); text(mx + 91, my + 12, val[kTruePeak] > 0.5f ? "OUT TP" : "OUT", nullptr);
         char b[16]; fontSize(8.5f); textLetterSpacing(0.2f);
-        snprintf(b, sizeof b, "%.1f", pkIn + ko); fillColor(pkIn > 0 ? C_GR : C_DIM); text(MX + 19, MY + 27, pkIn > -100 ? b : "-inf", nullptr);
-        snprintf(b, sizeof b, "-%.1f", pkGr); fillColor(C_GR); text(MX + 51, MY + 27, b, nullptr);
-        snprintf(b, sizeof b, "%.1f", pkOut + ko); fillColor(pkOut > val[kCeiling] + 0.05f ? C_GR : C_OUT); text(MX + 91, MY + 27, pkOut > -100 ? b : "-inf", nullptr);
-        if (ko > 0) { fontSize(7); fillColor(C_FAINT); char kb[16]; snprintf(kb, sizeof kb, "K-%.0f", ko); text(MX + MW / 2, MY + MH - 10, kb, nullptr); }
-        else { fontSize(7); fillColor(C_FAINT); text(MX + MW / 2, MY + MH - 10, "dBFS", nullptr); }
+        snprintf(b, sizeof b, "%.1f", pkIn + ko); fillColor(pkIn > 0 ? C_GR : C_DIM); text(mx + 19, my + 27, pkIn > -100 ? b : "-inf", nullptr);
+        snprintf(b, sizeof b, "-%.1f", pkGr); fillColor(C_GR); text(mx + 51, my + 27, b, nullptr);
+        snprintf(b, sizeof b, "%.1f", pkOut + ko); fillColor(pkOut > val[kCeiling] + 0.05f ? C_GR : C_OUT); text(mx + 91, my + 27, pkOut > -100 ? b : "-inf", nullptr);
+        fontSize(7); fillColor(C_FAINT);
+        if (ko > 0) { char kb[16]; snprintf(kb, sizeof kb, "K-%.0f", ko); text(mx + 60, my + mh - 10, kb, nullptr); }
+        else text(mx + 60, my + mh - 10, "dBFS", nullptr);
     }
-
+    // compact layout: horizontal meters and the loudness readouts in one strip
+    void drawStrip() {
+        displayBox(LX, LY, W - 2 * LX, STRIP_H - 8);
+        const float x0 = LX + 46, x1 = LX + 470, R = rangeDb();
+        auto xOf = [&](float db) { return x0 + (x1 - x0) * clampf((db + R) / (R + headDb()), 0.f, 1.f); };
+        auto hbar = [&](float y, float db, const Color& c, const char* name) {
+            fontSize(7.5f); textLetterSpacing(1.2f); textAlign(ALIGN_LEFT | ALIGN_MIDDLE); fillColor(C_FAINT); text(LX + 12, y + 4, name, nullptr);
+            beginPath(); rect(x0, y, x1 - x0, 8); fillColor(C_PANEL_HI); fill();
+            if (db > -R) { beginPath(); rect(x0, y, xOf(db) - x0, 8); fillColor(c); fill(); }
+        };
+        hbar(LY + 12, std::max(val[kOutInL], val[kOutInR]), Color(0x7a, 0x7b, 0x80), "IN");
+        { const float y = LY + 34; fontSize(7.5f); textLetterSpacing(1.2f); textAlign(ALIGN_LEFT | ALIGN_MIDDLE); fillColor(C_FAINT); text(LX + 12, y + 4, "GR", nullptr);
+          beginPath(); rect(x0, y, x1 - x0, 8); fillColor(C_PANEL_HI); fill();
+          const float g = clampf(val[kOutGr] / (headDb() + R), 0.f, 1.f); if (g > 0.002f) { beginPath(); rect(x1 - (x1 - x0) * g, y, (x1 - x0) * g, 8); fillColor(C_GR); fill(); } }
+        hbar(LY + 56, std::max(val[kOutOutL], val[kOutOutR]), C_OUT, "OUT");
+        beginPath(); moveTo(xOf(val[kCeiling]), LY + 52); lineTo(xOf(val[kCeiling]), LY + 68); strokeColor(C_ACC); strokeWidth(1.2f); stroke();
+        char b[24]; fontSize(9); textLetterSpacing(0.3f); textAlign(ALIGN_LEFT | ALIGN_MIDDLE);
+        snprintf(b, sizeof b, "GR -%.1f dB", pkGr); fillColor(C_GR); text(x1 + 14, LY + 38, b, nullptr);
+        snprintf(b, sizeof b, "OUT %.1f", pkOut + kOffsetDb(val[kMeterScale])); fillColor(pkOut > val[kCeiling] + 0.05f ? C_GR : C_OUT); text(x1 + 14, LY + 60, pkOut > -100 ? b : "OUT -inf", nullptr);
+        drawLoudness(LX + 620, LY + 22, 470, true);
+        drawMonitorBadge(LX + 690, LY + 10);
+    }
     void drawKnobBody(float x, float y, float r, float n, bool hot, Color col) {
         const float a0 = 0.75f * 3.14159265f, a1 = 2.25f * 3.14159265f, ang = a0 + (a1 - a0) * n;
         const float tw = r > 30 ? 6.f : (r > 18 ? 4.f : 3.f);
@@ -403,12 +539,12 @@ protected:
             break; }
         case Segment: {
             int n = 0; const char* const* names = segLabels(p, n);
-            const int cur = (int)(val[p] + .5f); const float sw = c.r / n, x0 = c.x - c.r / 2;
+            const int cur = (int)(val[p] + .5f), per = (n + c.rows - 1) / c.rows; const float sw = c.r / per, x0 = c.x - c.r / 2;
             const bool dim = p == kShaping && val[kDither] < 0.5f;
             for (int i = 0; i < n; ++i) {
-                const float x = x0 + sw * i;
-                beginPath(); roundedRect(x + 1.5f, c.y - SEG_H / 2, sw - 3, SEG_H, 5); fillColor(i == cur ? (dim ? C_FAINT : C_ACC) : C_PANEL_HI); fill();
-                fontSize(p == kStyle ? 9.5f : 8.5f); textLetterSpacing(1.4f); textAlign(ALIGN_CENTER | ALIGN_MIDDLE); fillColor(i == cur ? C_BG : (dim ? C_FAINT : C_DIM)); text(x + sw / 2, c.y + 0.5f, names[i], nullptr);
+                const float x = x0 + sw * (i % per), yy = c.y + (i / per) * (SEG_H + 4);
+                beginPath(); roundedRect(x + 1.5f, yy - SEG_H / 2, sw - 3, SEG_H, 5); fillColor(i == cur ? (dim ? C_FAINT : C_ACC) : C_PANEL_HI); fill();
+                fontSize(p == kStyle ? 9.5f : 8.5f); textLetterSpacing(n > 5 && p != kStyle ? 0.8f : 1.4f); textAlign(ALIGN_CENTER | ALIGN_MIDDLE); fillColor(i == cur ? C_BG : (dim ? C_FAINT : C_DIM)); text(x + sw / 2, yy + 0.5f, names[i], nullptr);
             }
             break; }
         }
@@ -444,7 +580,7 @@ protected:
     // ---- presets ------------------------------------------------------------------
     bool matchesValues(const float* v) const {
         for (uint32_t i = 0; i < kParamCount; ++i) {
-            if (paramDef(i).hints & kHintOutput) continue;
+            if (!isSetting(i)) continue;
             if (std::fabs(val[i] - v[i]) > 1e-4f * std::max(1.f, std::fabs(v[i]))) return false;
         }
         return true;
@@ -546,8 +682,9 @@ protected:
             switch (c.type) {
             case Knob: { const float rr = c.r + 6; if ((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) <= rr * rr) return i; break; }
             case Toggle: if (x >= c.x - 20 && x <= c.x + 150 && std::fabs(y - c.y) <= 12) return i; break;
-            case Segment: { int n = 0; segLabels(c.param, n); const float x0 = c.x - c.r / 2;
-                if (x >= x0 && x < x0 + c.r && std::fabs(y - c.y) <= SEG_H / 2 + 1) { if (seg) *seg = (int)((x - x0) / (c.r / n)); return i; } break; }
+            case Segment: { int n = 0; segLabels(c.param, n); const int per = (n + c.rows - 1) / c.rows; const float x0 = c.x - c.r / 2;
+                const int row = (int)std::floor((y - (c.y - SEG_H / 2 - 2)) / (SEG_H + 4));
+                if (x >= x0 && x < x0 + c.r && row >= 0 && row < c.rows) { const int k = row * per + (int)((x - x0) / (c.r / per)); if (k < n) { if (seg) *seg = k; return i; } } break; }
             }
         }
         return -1;
@@ -562,6 +699,7 @@ protected:
         if (x >= A_X && x < A_X + AB_W) return 6;
         if (x >= A_X + AB_W && x < A_X + 2 * AB_W) return 7;
         if (x >= COPY_X && x <= COPY_X + COPY_W) return 8;
+        if (x >= CMP_X && x <= CMP_X + CMP_W) return 9;
         return 0;
     }
     int presetBarHit(float x, float y) const {
@@ -569,9 +707,10 @@ protected:
         return x < PS_X + PS_ARROW ? 0 : (x > PS_X + PS_W - PS_ARROW ? 2 : 1);
     }
     bool clearHit(float x, float y) const { return learnMode && learnWaiting < 0 && inRect(x, y, LX + LW - 190, LY + 8, 180, 20); }
-    bool inDisplay(float x, float y) const { return inRect(x, y, LX + 30, LY + 6, LW - 36, LH - 20); }
+    bool inDisplay(float x, float y) const { return !compact() && inRect(x, y, LX + 30, LY + 6, LW - 36, LH - 20); }
     bool ceilHit(float x, float y) const { return inDisplay(x, y) && std::fabs(y - yOfDb(val[kCeiling], dispTop(), dispH())) <= 6; }
-    bool metersHit(float x, float y) const { return inRect(x, y, MX, MY, MW, MH); }
+    bool metersHit(float x, float y) const { return compact() ? inRect(x, y, LX, LY, 600, STRIP_H - 8) : inRect(x, y, MX, MY, 120, MH); }
+    bool loudHit(float x, float y) const { return compact() ? inRect(x, y, LX + 600, LY, W - 2 * LX - 600, STRIP_H - 8) : inRect(x, y, MX + 120, MY, MW - 120, MH); }
 
     void setLearn(bool on) { learnMode = on; learnWaiting = -1; if (!on) setState("cmd", "cancel"); repaint(); }
     void endEdit(bool apply) {
@@ -648,12 +787,14 @@ protected:
         if (hh == 5) { helpOpen = true; repaint(); return true; }
         if (hh == 6 || hh == 7) { switchAB(hh - 6); return true; }
         if (hh == 8) { copyAB(); return true; }
+        if (hh == 9) { commit(kCompact, compact() ? 0.f : 1.f); return true; }
         const int pb = presetBarHit(x, y);
         if (pb == 0) { step(-1); return true; }
         if (pb == 2) { step(1); return true; }
         if (pb == 1) { userPresets = listUserPresets(); menuOpen = true; menuHover = -1; pendingDelete = -1; repaint(); return true; }
         if (clearHit(x, y)) { setState("cmd", "clear"); for (int& m : paramCC) m = -1; repaint(); return true; }
         if (metersHit(x, y)) { resetPeaks(); repaint(); return true; }
+        if (loudHit(x, y)) { setState("cmd", "loudreset"); flash("Loudness reset"); return true; }
 
         int seg = 0; const int i = hit(x, y, &seg);
         if (i >= 0) {
@@ -705,9 +846,11 @@ protected:
         const int hh = headerHit(x, y); if (hh != hoverHeader) { hoverHeader = hh; repaint(); }
         const int pb = presetBarHit(x, y); if (pb != presetHover) { presetHover = pb; repaint(); }
         const bool hc = clearHit(x, y); if (hc != hoverClear) { hoverClear = hc; repaint(); }
-        const int h = hit(x, y); if (h != hover) { hover = h; repaint(); }
+        int segAt = -1; const int h = hit(x, y, &segAt); if (h != hover) { hover = h; repaint(); }
+        if (h >= 0 && controls()[h].param == kStyle && segAt != tipSeg) { tipSeg = segAt; tipKey = -1; }      // each style button has its own tip
+        else if (h < 0 || controls()[h].param != kStyle) tipSeg = -1;
         const bool hcl = h < 0 && !learnMode && ceilHit(x, y); if (hcl != hoverCeil) { hoverCeil = hcl; repaint(); }
-        const int key = h >= 0 ? h : (hh > 0 ? 1000 + hh : (pb >= 0 ? 2000 + pb : (hcl ? 3001 : (inDisplay(x, y) ? 3000 : (metersHit(x, y) ? 3002 : -1)))));
+        const int key = h >= 0 ? h : (hh > 0 ? 1000 + hh : (pb >= 0 ? 2000 + pb : (hcl ? 3001 : (inDisplay(x, y) ? 3000 : (metersHit(x, y) ? 3002 : (loudHit(x, y) ? 3003 : -1))))));
         tipX = x; tipY = y;
         if (key != tipKey) { const bool was = tipShown; tipKey = key; tipSince = nowSec(); tipShown = false; if (key != tipSuppressed) tipSuppressed = -2; if (was) repaint(); }
         return false;
@@ -738,7 +881,7 @@ protected:
                 uint32_t from = lastHist; if (w - from > (uint32_t)HIST || w < from) from = w > (uint32_t)HIST ? w - HIST : 0;
                 for (uint32_t k = from; k < w; ++k) {
                     const uint32_t r = k % Engine::kHist;
-                    hIn[hPos] = e.hIn[r]; hOut[hPos] = e.hOut[r]; hGr[hPos] = e.hGr[r]; hRms[hPos] = e.hRms[r];
+                    hIn[hPos] = e.hIn[r]; hOut[hPos] = e.hOut[r]; hGr[hPos] = e.hGr[r]; hRms[hPos] = e.hRms[r]; hLoud[hPos] = e.hLoud[r];
                     hPos = (hPos + 1) % HIST;
                 }
                 lastHist = w;
@@ -756,15 +899,16 @@ protected:
         if (tipKey < 1000) {
             const uint32_t p = controls()[tipKey].param; char b[40]; fmt(p, b, sizeof b);
             title = paramDef(p).name; value = b; body = paramTip(p);
+            if (p == kStyle && tipSeg >= 0) { title = std::string("Style: ") + enumLabelOf(kStyle, tipSeg); value.clear(); body = styleTip(tipSeg); }
             if (controls()[tipKey].type == Knob) body += "\n\nDrag the middle up/down or grab the rim and turn. Double-click to type a value, Cmd/Ctrl-click to reset.";
             if (paramCC[p] >= 0) { char cc[32]; snprintf(cc, sizeof cc, "   ·   CC%d", paramCC[p]); value += cc; }
             return true;
         }
         int t = -1;
-        if (tipKey >= 3000) t = tipKey == 3000 ? kTipDisplay : (tipKey == 3001 ? kTipCeilingLine : kTipMeters);
+        if (tipKey >= 3000) t = tipKey == 3000 ? kTipDisplay : (tipKey == 3001 ? kTipCeilingLine : (tipKey == 3002 ? kTipMeters : kTipLoudness));
         else if (tipKey >= 2000) t = kTipPrev + (tipKey - 2000);
         else { const int hh = tipKey - 1000;
-            t = hh == 1 ? kTipLearn : hh == 2 ? kTipMidi : hh == 3 ? kTipUndo : hh == 4 ? kTipRedo : hh == 5 ? kTipHelp : hh == 6 ? kTipA : hh == 7 ? kTipB : kTipCopy; }
+            t = hh == 1 ? kTipLearn : hh == 2 ? kTipMidi : hh == 3 ? kTipUndo : hh == 4 ? kTipRedo : hh == 5 ? kTipHelp : hh == 6 ? kTipA : hh == 7 ? kTipB : hh == 8 ? kTipCopy : kTipCompact; }
         title = targetTitle(t); value.clear(); body = targetTip(t);
         if (t == kTipUndo || t == kTipRedo) { const size_t n = t == kTipUndo ? undoStack.size() : redoStack.size(); char b[32]; snprintf(b, sizeof b, "%d step%s", (int)n, n == 1 ? "" : "s"); value = b; }
         if (t == kTipCeilingLine) { char b[24]; fmt(kCeiling, b, sizeof b); value = b; }
@@ -794,17 +938,19 @@ protected:
     }
 
     // ---- help window ---------------------------------------------------------------
-    static constexpr float HX = 140, HY = 70, HW = 760, HH = 520, TAB_W = 180, TAB_H = 34;
+    static constexpr float HX = (W - 760) / 2, HW = 760, TAB_W = 180, TAB_H = 34;
+    float hy() const { return compact() ? 10.f : 70.f; }
+    float hh() const { return compact() ? HC - 20 : 520.f; }
     int helpHit(float x, float y) const {
-        if (x < HX || x > HX + HW || y < HY || y > HY + HH) return -2;
-        for (int i = 0; i < kNumHelpPages; ++i) if (x >= HX + 12 && x < HX + 12 + TAB_W && y >= HY + 56 + i * TAB_H && y < HY + 56 + (i + 1) * TAB_H) return i;
-        const float by = HY + HH - 44;
+        if (x < HX || x > HX + HW || y < hy() || y > hy() + hh()) return -2;
+        for (int i = 0; i < kNumHelpPages; ++i) if (x >= HX + 12 && x < HX + 12 + TAB_W && y >= hy() + 56 + i * TAB_H && y < hy() + 56 + (i + 1) * TAB_H) return i;
+        const float by = hy() + hh() - 44;
         if (y >= by && y < by + 28) {
             if (x >= HX + 12 && x < HX + 12 + TAB_W) return 100;
             if (x >= HX + HW - 330 && x < HX + HW - 140) return 101;
             if (x >= HX + HW - 124 && x < HX + HW - 16) return 102;
         }
-        if (x >= HX + HW - 40 && y < HY + 40) return 102;
+        if (x >= HX + HW - 40 && y < hy() + 40) return 102;
         return -1;
     }
     void helpClick(float x, float y) {
@@ -817,24 +963,24 @@ protected:
     }
     void drawHelp() {
         beginPath(); rect(0, 0, W, H); fillColor(Color(0, 0, 0, 0.55f)); fill();
-        beginPath(); roundedRect(HX, HY, HW, HH, 10); fillColor(C_PANEL); fill(); strokeColor(C_LINE); strokeWidth(1); stroke();
-        fontSize(13); textLetterSpacing(4.f); textAlign(ALIGN_LEFT | ALIGN_MIDDLE); fillColor(C_TEXT); text(HX + 22, HY + 28, "GRANITE HELP", nullptr);
-        const float cx = HX + HW - 24, cy = HY + 26;
+        beginPath(); roundedRect(HX, hy(), HW, hh(), 10); fillColor(C_PANEL); fill(); strokeColor(C_LINE); strokeWidth(1); stroke();
+        fontSize(13); textLetterSpacing(4.f); textAlign(ALIGN_LEFT | ALIGN_MIDDLE); fillColor(C_TEXT); text(HX + 22, hy() + 28, "GRANITE HELP", nullptr);
+        const float cx = HX + HW - 24, cy = hy() + 26;
         beginPath(); moveTo(cx - 6, cy - 6); lineTo(cx + 6, cy + 6); moveTo(cx + 6, cy - 6); lineTo(cx - 6, cy + 6); strokeColor(helpHover == 102 ? C_TEXT : C_DIM); strokeWidth(1.6f); stroke();
         for (int i = 0; i < kNumHelpPages; ++i) {
-            const float ty = HY + 56 + i * TAB_H;
+            const float ty = hy() + 56 + i * TAB_H;
             if (i == helpPage || i == helpHover) { beginPath(); roundedRect(HX + 12, ty + 2, TAB_W, TAB_H - 4, 5); fillColor(i == helpPage ? withAlpha(C_ACC, 0.16f) : C_PANEL_HI); fill(); }
             if (i == helpPage) { beginPath(); roundedRect(HX + 12, ty + 8, 3, TAB_H - 16, 1.5f); fillColor(C_ACC); fill(); }
             fontSize(11.5f); textLetterSpacing(0.6f); textAlign(ALIGN_LEFT | ALIGN_MIDDLE); fillColor(i == helpPage ? C_TEXT : C_DIM);
             text(HX + 28, ty + TAB_H / 2 + 0.5f, kHelpPages[i].title, nullptr);
         }
-        beginPath(); moveTo(HX + TAB_W + 26, HY + 56); lineTo(HX + TAB_W + 26, HY + HH - 56); strokeColor(C_LINE); strokeWidth(1); stroke();
+        beginPath(); moveTo(HX + TAB_W + 26, hy() + 56); lineTo(HX + TAB_W + 26, hy() + hh() - 56); strokeColor(C_LINE); strokeWidth(1); stroke();
         const float bx = HX + TAB_W + 46, bw = HW - TAB_W - 70;
-        fontSize(15); textLetterSpacing(0.8f); textAlign(ALIGN_LEFT | ALIGN_TOP); fillColor(C_ACC); text(bx, HY + 60, kHelpPages[helpPage].title, nullptr);
+        fontSize(15); textLetterSpacing(0.8f); textAlign(ALIGN_LEFT | ALIGN_TOP); fillColor(C_ACC); text(bx, hy() + 60, kHelpPages[helpPage].title, nullptr);
         fontSize(12); textLetterSpacing(0.2f); textLineHeight(1.38f); fillColor(Color(0xc6, 0xc4, 0xc0));
-        textBox(bx, HY + 92, bw, kHelpPages[helpPage].body, nullptr);
+        textBox(bx, hy() + 92, bw, kHelpPages[helpPage].body, nullptr);
         textLineHeight(1.f);
-        const float by = HY + HH - 44;
+        const float by = hy() + hh() - 44;
         beginPath(); moveTo(HX + 12, by - 10); lineTo(HX + HW - 12, by - 10); strokeColor(C_LINE); stroke();
         const float tw = 34, th = 18, tx = HX + 16, tyy = by + 14 - th / 2;
         beginPath(); roundedRect(tx, tyy, tw, th, th / 2); fillColor(gTipsOn ? withAlpha(C_ACC, 0.25f) : C_PANEL_HI); fill(); strokeColor(gTipsOn ? C_ACC : C_LINE); stroke();
@@ -863,9 +1009,9 @@ private:
     std::string curUser; std::vector<std::string> userPresets;
     bool menuOpen = false, saving = false, saveError = false; std::string saveName;
     bool learnMode = false, hoverClear = false; int learnWaiting = -1; float lastLearnEcho = 0;
-    int tipKey = -1, tipSuppressed = -2; double tipSince = 0; bool tipShown = false; float tipX = 0, tipY = 0;
+    int tipKey = -1, tipSuppressed = -2, tipSeg = -1; double tipSince = 0; bool tipShown = false; float tipX = 0, tipY = 0;
     bool helpOpen = false; int helpPage = 0, helpHover = -1;
-    float hIn[HIST], hOut[HIST], hGr[HIST], hRms[HIST]; int hPos = 0; uint32_t lastHist = 0; double lastPoll = 0;
+    float hIn[HIST], hOut[HIST], hGr[HIST], hRms[HIST], hLoud[HIST]; int hPos = 0; uint32_t lastHist = 0; double lastPoll = 0;
     float pkIn = -120, pkOut = -120, pkGr = 0, latencyMs = 0;
     ResizeHandle resizeHandle;
 

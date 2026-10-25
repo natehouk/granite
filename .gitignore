@@ -5,10 +5,9 @@ build/
 dist/
 *.o
 tests/features
+tests/features2
+tests/compat
 tests/fuzz
 tests/presets
 tests/bench
-tests/features
-tests/fuzz
-tests/presets
-tests/bench
+tests/*.log
