@@ -101,6 +101,7 @@ xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/*/Granite*
 - **MIDI Learn.**
 - Smoothed parameters, sample-accurate automation and a resizable interface with a **compact layout**.
 - **40 factory presets:** Mastering, Genres, Mix & Bus and Utility, plus your own presets.
+- The preset browser **searches** names and categories as you type, and a star keeps a preset in **Favourites**.
 - **Hover tips** everywhere, including each style.
 - **HELP window** and a **[full manual](docs/MANUAL.md)**, also in every release zip as `Granite-Manual.html`.
 
@@ -188,6 +189,7 @@ New parameters, styles and presets are only ever appended, so saved sessions and
 
 ## Changelog
 
+- **Unreleased:** the preset browser searches names and categories as you type, and keeps Favourites.
 - **2.0:** Brings Granite up to Pro-L 2. New in this version:
   - Four new styles: Aggressive, Modern, Bus and Safe.
   - True-peak limiting.

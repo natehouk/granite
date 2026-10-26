@@ -66,7 +66,7 @@ inline const char* targetTip(int t) {
     case kTipA: case kTipB: return "Granite keeps two complete settings, A and B. Click the other letter to switch and compare by ear. Match the loudness first, or louder will always sound better.";
     case kTipCopy: return "Copies the current setting to the other slot.";
     case kTipPrev: return "Load the previous preset. The mouse wheel over the preset name also steps through presets.";
-    case kTipPresets: return "Open the preset browser: mastering, genre, mix-bus and utility presets, your own presets, and Save Current As. A * after the name means you have changed it.";
+    case kTipPresets: return "Open the preset browser: mastering, genre, mix-bus and utility presets, your own presets, and Save Current As. A * after the name means you have changed it. In the browser, type to search names and categories, and click a star to keep a preset in Favourites.";
     case kTipNext: return "Load the next preset.";
     case kTipDisplay: return "The last few seconds (see DISPLAY SPEED), scrolling left. Grey: the signal going in (after Gain). Light: the output. Red: where the limiter is working; its depth is the gain reduction, and the labels mark the deepest moments. The thin line is the output's RMS level, or its momentary loudness when a loudness target is set. Drag up and down to change Gain; the mouse wheel does the same.";
     case kTipCeilingLine: return "The output level. Drag it up or down. No output sample will cross it.";
