@@ -1,4 +1,4 @@
-# Granite 2.0 — User Manual
+# Granite 2.1 — User Manual
 
 Granite is a stereo brickwall limiter. It makes audio louder while guaranteeing that nothing goes above the output level you set.
 

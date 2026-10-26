@@ -267,7 +267,7 @@ protected:
         for (int i = 0; i < 10; ++i) { beginPath(); circle(sp[i][0], sp[i][1], sp[i][2]); fillColor(i % 3 == 0 ? Color(0x1c, 0x1b, 0x1a) : (i % 3 == 1 ? Color(0xe8, 0xe2, 0xda) : Color(0xb4, 0x8a, 0x78))); fill(); }
         fontSize(22); textLetterSpacing(9); fillColor(C_TEXT); textAlign(ALIGN_LEFT | ALIGN_MIDDLE); text(56, 34, "GRANITE", nullptr);
         fontSize(9.5f); textLetterSpacing(2.5f); fillColor(C_DIM); text(222, 29, "LIMITER", nullptr);
-        fontSize(7); textLetterSpacing(1.1f); fillColor(C_FAINT); text(222, 41, "EPSILON AUDIO 2.0", nullptr);
+        fontSize(7); textLetterSpacing(1.1f); fillColor(C_FAINT); text(222, 41, "EPSILON AUDIO 2.1", nullptr);
         drawPresetBar();
         for (int k = 0; k < 2; ++k) {
             const float x = A_X + k * AB_W; const bool on = abSlot == k, hot = hoverHeader == 6 + k;

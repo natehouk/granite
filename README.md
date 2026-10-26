@@ -189,7 +189,7 @@ New parameters, styles and presets are only ever appended, so saved sessions and
 
 ## Changelog
 
-- **Unreleased:** the preset browser searches names and categories as you type, and keeps Favourites.
+- **2.1:** the preset browser searches names and categories as you type, and keeps Favourites.
 - **2.0:** Brings Granite up to Pro-L 2. New in this version:
   - Four new styles: Aggressive, Modern, Bus and Safe.
   - True-peak limiting.
